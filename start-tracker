@@ -1,0 +1,40 @@
+#!/bin/bash
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+# Install tracker-ui deps on first run
+if [ ! -d "tracker-ui/node_modules" ]; then
+  echo "Installing tracker UI dependencies (first run)..."
+  cd tracker-ui && npm install && cd ..
+fi
+
+echo ""
+echo "  Starting Job Tracker..."
+echo "  API server  → http://localhost:3001"
+echo "  Dashboard   → http://localhost:5173"
+echo ""
+echo "  Press Ctrl+C to stop."
+echo ""
+
+# Start API server in background
+node tracker-server.mjs &
+SERVER_PID=$!
+
+# Start Vite dev server in background
+cd tracker-ui && npm run dev &
+VITE_PID=$!
+cd "$SCRIPT_DIR"
+
+# Kill both on exit
+cleanup() {
+  echo ""
+  echo "  Stopping tracker..."
+  kill "$SERVER_PID" "$VITE_PID" 2>/dev/null || true
+  wait "$SERVER_PID" "$VITE_PID" 2>/dev/null || true
+  exit 0
+}
+trap cleanup INT TERM
+
+wait
